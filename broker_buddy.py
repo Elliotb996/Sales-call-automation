@@ -1,5 +1,5 @@
 import streamlit as st
-import openai
+from openai import OpenAI
 import pandas as pd
 import json
 from fpdf import FPDF
@@ -11,7 +11,7 @@ if 'results' not in st.session_state:
 
 # ---- CONFIG ----
 st.set_page_config(page_title="Broker Buddy", layout="wide")
-openai.api_key = ""  # Initialize empty, set via input
+client = OpenAI()  # Will use environment variable OPENAI_API_KEY
 
 # ---- HEADER ----
 st.title("📈 Broker Buddy - AI Compliance & Sales Assistant")
@@ -26,13 +26,10 @@ st.markdown("""
 # ---- SIDEBAR FOR API KEY ----
 with st.sidebar:
     st.header("Configuration")
-    api_key = st.text_input("Enter OpenAI API Key:", type="password")
+    api_key = st.text_input("Enter OpenAI API Key:", type="password", key="api_key")
     if api_key:
-        if not api_key.startswith('sk-'):
-            st.warning("⚠️ Please enter a valid OpenAI API key")
-        else:
-            openai.api_key = api_key
-            st.success("✅ API Key validated")
+        client.api_key = api_key
+        st.success("✅ API Key validated")
 
 # ---- MAIN INPUT ----
 transcript = st.text_area("Paste Call Transcript Here:", height=300, help="Minimum 500 characters for best results")
@@ -55,16 +52,15 @@ def run_compliance_check(transcript):
         Transcript: {transcript}"""
 
         with st.spinner("🔍 Running compliance check..."):
-            response = openai.ChatCompletion.create(
-                model="gpt-4-turbo",
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
                 messages=[{"role": "system", "content": prompt}],
                 max_tokens=400,
                 temperature=0.2
             )
-        return response['choices'][0]['message']['content']
+        return response.choices[0].message.content
     except Exception as e:
-        st.error(f"Compliance check failed: {str(e)}")
-        return "Error in compliance analysis"
+        return f"Compliance check failed: {str(e)}"
 
 def run_sales_coaching(transcript):
     try:
@@ -80,16 +76,15 @@ def run_sales_coaching(transcript):
         Transcript: {transcript}"""
 
         with st.spinner("💡 Generating sales insights..."):
-            response = openai.ChatCompletion.create(
-                model="gpt-4-turbo",
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
                 messages=[{"role": "system", "content": prompt}],
                 max_tokens=400,
                 temperature=0.3
             )
-        return response['choices'][0]['message']['content']
+        return response.choices[0].message.content
     except Exception as e:
-        st.error(f"Sales coaching failed: {str(e)}")
-        return "Error in sales analysis"
+        return f"Sales coaching failed: {str(e)}"
 
 def extract_crm_data(transcript):
     try:
@@ -105,16 +100,15 @@ def extract_crm_data(transcript):
         Use null for missing values. Transcript: {transcript}"""
 
         with st.spinner("📂 Extracting CRM data..."):
-            response = openai.ChatCompletion.create(
-                model="gpt-4-turbo",
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
                 messages=[{"role": "system", "content": prompt}],
                 max_tokens=200,
                 temperature=0.1
             )
-        return json.loads(response['choices'][0]['message']['content'])
+        return json.loads(response.choices[0].message.content)
     except Exception as e:
-        st.error(f"CRM extraction failed: {str(e)}")
-        return {"error": "Failed to extract CRM data"}
+        return {"error": f"CRM extraction failed: {str(e)}"}
 
 def recommend_lender(transcript):
     try:
@@ -129,16 +123,15 @@ def recommend_lender(transcript):
         Return only the lender name. Transcript: {transcript}"""
 
         with st.spinner("🤖 Analyzing lender match..."):
-            response = openai.ChatCompletion.create(
-                model="gpt-4-turbo",
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
                 messages=[{"role": "system", "content": prompt}],
                 max_tokens=50,
                 temperature=0.1
             )
-        return response['choices'][0]['message']['content']
+        return response.choices[0].message.content
     except Exception as e:
-        st.error(f"Lender recommendation failed: {str(e)}")
-        return "Error in lender recommendation"
+        return f"Lender recommendation failed: {str(e)}"
 
 # ---- REPORT GENERATION ----
 def generate_pdf():
@@ -154,34 +147,21 @@ def generate_pdf():
         pdf.cell(200, 10, txt=f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=1, align='C')
         pdf.ln(15)
         
-        # Compliance Section
-        pdf.set_font("Arial", 'B', 14)
-        pdf.cell(200, 10, txt="Compliance Review", ln=1)
-        pdf.set_font("Arial", size=10)
-        pdf.multi_cell(0, 8, st.session_state.results['compliance'])
-        pdf.ln(10)
+        # Sections
+        sections = [
+            ("Compliance Review", st.session_state.results['compliance']),
+            ("Sales Coaching", st.session_state.results['sales']),
+            ("CRM Data", "\n".join([f"{k}: {v}" for k,v in st.session_state.results['crm'].items()])),
+            ("Lender Recommendation", st.session_state.results['lender'])
+        ]
         
-        # Sales Coaching
-        pdf.set_font("Arial", 'B', 14)
-        pdf.cell(200, 10, txt="Sales Coaching", ln=1)
-        pdf.set_font("Arial", size=10)
-        pdf.multi_cell(0, 8, st.session_state.results['sales'])
-        pdf.ln(10)
-        
-        # CRM Data
-        pdf.set_font("Arial", 'B', 14)
-        pdf.cell(200, 10, txt="CRM Data", ln=1)
-        pdf.set_font("Arial", size=10)
-        for key, value in st.session_state.results['crm'].items():
-            pdf.multi_cell(0, 8, f"{key.replace('_', ' ').title()}: {value or 'N/A'}")
-        pdf.ln(10)
-        
-        # Lender Recommendation
-        pdf.set_font("Arial", 'B', 14)
-        pdf.cell(200, 10, txt="Lender Recommendation", ln=1)
-        pdf.set_font("Arial", size=10)
-        pdf.multi_cell(0, 8, st.session_state.results['lender'])
-        
+        for title, content in sections:
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(200, 10, txt=title, ln=1)
+            pdf.set_font("Arial", size=10)
+            pdf.multi_cell(0, 8, str(content))
+            pdf.ln(10)
+            
         return pdf.output(dest='S').encode('latin-1')
     except Exception as e:
         st.error(f"PDF generation failed: {str(e)}")
@@ -189,41 +169,22 @@ def generate_pdf():
 
 # ---- MAIN PROCESSING ----
 if st.button("🚀 Run Full Analysis"):
-    if not api_key or not api_key.startswith('sk-'):
-        st.error("Please provide a valid OpenAI API key in the sidebar")
-    elif len(transcript) < 500:
-        st.warning("Please provide a longer transcript for meaningful analysis")
+    if not transcript or len(transcript) < 500:
+        st.warning("Please provide a transcript of at least 500 characters")
     else:
         with st.status("🔮 Processing transcript...", expanded=True) as status:
             try:
-                st.write("Starting compliance analysis...")
-                compliance = run_compliance_check(transcript)
-                
-                st.write("Analyzing sales performance...")
-                sales = run_sales_coaching(transcript)
-                
-                st.write("Extracting CRM data...")
-                crm = extract_crm_data(transcript)
-                
-                st.write("Determining lender match...")
-                lender = recommend_lender(transcript)
-                
-                st.session_state.results = {
-                    'compliance': compliance,
-                    'sales': sales,
-                    'crm': crm,
-                    'lender': lender
+                results = {
+                    'compliance': run_compliance_check(transcript),
+                    'sales': run_sales_coaching(transcript),
+                    'crm': extract_crm_data(transcript),
+                    'lender': recommend_lender(transcript)
                 }
-                
+                st.session_state.results = results
                 status.update(label="Analysis complete!", state="complete", expanded=False)
                 st.toast("✅ Analysis completed!", icon="✅")
-                
-            except openai.error.AuthenticationError:
-                st.error("❌ Invalid API key - please verify in sidebar")
-            except openai.error.APIError as e:
-                st.error(f"🚨 OpenAI API Error: {str(e)}")
             except Exception as e:
-                st.error(f"⚠️ Unexpected error: {str(e)}")
+                st.error(f"Processing failed: {str(e)}")
 
 # ---- DISPLAY RESULTS ----
 if st.session_state.results:
@@ -244,8 +205,6 @@ if st.session_state.results:
         st.subheader("🏦 Lender Recommendation")
         st.success(st.session_state.results['lender'])
 
-    st.divider()
-    
     # PDF Download
     pdf_bytes = generate_pdf()
     if pdf_bytes:
@@ -253,13 +212,11 @@ if st.session_state.results:
             label="📥 Download Full Report (PDF)",
             data=pdf_bytes,
             file_name=f"Broker_Buddy_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-            mime="application/pdf",
-            help="Download comprehensive PDF report with all analysis"
+            mime="application/pdf"
         )
 
 # ---- FOOTER ----
 st.markdown("""
 ---
-**Broker Buddy v1.0** | Developed for FCA-regulated UK brokers  
-Next features: Audio transcription | Client dashboards | Custom lender matrices
+**Broker Buddy v2.0** | Using GPT-4o-mini model | FCA-compliant analysis
 """)
