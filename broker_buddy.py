@@ -8,15 +8,26 @@ import datetime
 # Initialize session state
 if 'results' not in st.session_state:
     st.session_state.results = None
+if 'api_key' not in st.session_state:
+    st.session_state.api_key = None
 
 # ---- CONFIG ----
 st.set_page_config(page_title="Broker Buddy", layout="wide")
 
-# Initialize client only after API key is set
 def get_client():
-    if 'api_key' in st.session_state and st.session_state.api_key:
-        return OpenAI(api_key=st.session_state.api_key)
-    raise ValueError("API key not set")
+    if not st.session_state.api_key or not st.session_state.api_key.startswith('sk-'):
+        raise ValueError("Invalid or missing API key")
+    return OpenAI(api_key=st.session_state.api_key)
+
+# ---- HEADER ----
+st.title("📈 Broker Buddy - AI Compliance & Sales Assistant")
+st.markdown("""
+**Paste your call transcript below** to generate:
+- Compliance Review 🚦
+- Sales Coaching 📈  
+- CRM Data Extraction 💼
+- Lender Recommendations 🏦
+""")
 
 # ---- SIDEBAR FOR API KEY ----
 with st.sidebar:
@@ -38,6 +49,7 @@ transcript = st.text_area("Paste Call Transcript Here:", height=300, help="Minim
 # ---- AI PROCESSING FUNCTIONS ----
 def run_compliance_check(transcript):
     try:
+        client = get_client()
         prompt = f"""Act as a senior FCA compliance officer. Analyze this financial services transcript:
         - Check Consumer Duty (PROD) compliance
         - Identify vulnerable customer indicators
@@ -65,6 +77,7 @@ def run_compliance_check(transcript):
 
 def run_sales_coaching(transcript):
     try:
+        client = get_client()
         prompt = f"""As a top-performing sales coach, analyze this sales call:
         - Rapport building effectiveness
         - Needs discovery process
@@ -89,6 +102,7 @@ def run_sales_coaching(transcript):
 
 def extract_crm_data(transcript):
     try:
+        client = get_client()
         prompt = f"""Extract structured data from this transcript. Return valid JSON:
         {{
             "deposit": "currency amount",
@@ -113,6 +127,7 @@ def extract_crm_data(transcript):
 
 def recommend_lender(transcript):
     try:
+        client = get_client()
         prompt = f"""Classify lender suitability from UK motor finance transcript:
         Options:
         - Aldermore (Business/commercial use)
@@ -165,7 +180,6 @@ def generate_pdf():
             
         return pdf.output(dest='S').encode('latin-1')
     except Exception as e:
-        st.error(f"PDF generation failed: {str(e)}")
         return None
 
 # ---- MAIN PROCESSING ----
