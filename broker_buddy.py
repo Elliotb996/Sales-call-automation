@@ -11,25 +11,26 @@ if 'results' not in st.session_state:
 
 # ---- CONFIG ----
 st.set_page_config(page_title="Broker Buddy", layout="wide")
-client = OpenAI()  # Will use environment variable OPENAI_API_KEY
 
-# ---- HEADER ----
-st.title("📈 Broker Buddy - AI Compliance & Sales Assistant")
-st.markdown("""
-**Paste your call transcript below** to generate:
-- Compliance Review 🚦
-- Sales Coaching 📈  
-- CRM Data Extraction 💼
-- Lender Recommendations 🏦
-""")
+# Initialize client only after API key is set
+def get_client():
+    if 'api_key' in st.session_state and st.session_state.api_key:
+        return OpenAI(api_key=st.session_state.api_key)
+    raise ValueError("API key not set")
 
 # ---- SIDEBAR FOR API KEY ----
 with st.sidebar:
     st.header("Configuration")
-    api_key = st.text_input("Enter OpenAI API Key:", type="password", key="api_key")
-    if api_key:
-        client.api_key = api_key
-        st.success("✅ API Key validated")
+    st.text_input("Enter OpenAI API Key:", 
+                type="password", 
+                key="api_key",
+                help="Get your key from https://platform.openai.com/api-keys")
+    
+    if st.session_state.api_key:
+        if not st.session_state.api_key.startswith('sk-'):
+            st.warning("⚠️ Invalid API key format")
+        else:
+            st.success("✅ API Key validated")
 
 # ---- MAIN INPUT ----
 transcript = st.text_area("Paste Call Transcript Here:", height=300, help="Minimum 500 characters for best results")
