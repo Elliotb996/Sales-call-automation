@@ -2,3 +2,4 @@ streamlit
 openai
 fpdf
 pandas
+openai>=1.2.0
