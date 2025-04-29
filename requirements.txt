@@ -1,5 +1,6 @@
-streamlit
-openai
-fpdf
+pip 
+install 
+streamlit 
+openai 
+fpdf 
 pandas
-openai>=1.2.0
