@@ -4,6 +4,9 @@ import pandas as pd
 from fpdf import FPDF
 import datetime
 
+from openai import OpenAI
+client = OpenAI(api_key=api_key)
+
 # ---- CONFIG ----
 st.set_page_config(page_title="Broker Buddy", layout="wide")
 
@@ -36,12 +39,13 @@ def run_compliance_check(transcript):
     {transcript}
     """
 
-    response = openai.ChatCompletion.create(
-        model="gpt-4-turbo",
-        messages=[{"role": "system", "content": prompt}],
-        max_tokens=300
-    )
-    return response['choices'][0]['message']['content']
+   response = client.chat.completions.create(
+    model="gpt-4-turbo",
+    messages=[{"role": "system", "content": prompt}],
+    max_tokens=300
+)
+return response.choices[0].message.content
+
 
 
 def run_sales_coaching(transcript):
@@ -54,12 +58,13 @@ def run_sales_coaching(transcript):
     {transcript}
     """
 
-    response = openai.ChatCompletion.create(
-        model="gpt-4-turbo",
-        messages=[{"role": "system", "content": prompt}],
-        max_tokens=300
-    )
-    return response['choices'][0]['message']['content']
+    response = client.chat.completions.create(
+    model="gpt-4-turbo",
+    messages=[{"role": "system", "content": prompt}],
+    max_tokens=300
+)
+return response.choices[0].message.content
+
 
 
 def extract_crm_data(transcript):
